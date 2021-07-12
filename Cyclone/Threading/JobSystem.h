@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <unordered_map>
 #include "RingBuffer.h"
 
 /* Contextual Information
@@ -26,9 +27,9 @@ namespace JobSystem
     struct Job
     {
         std::function<void(JobInformation)> m_Job;
-        uint32_t m_GroupID;
-        uint32_t m_GroupJobOffset;
-        uint32_t m_GroupJobEnd;
+        uint32_t m_GroupID = 0;
+        uint32_t m_GroupJobOffset = 0;
+        uint32_t m_GroupJobEnd = 0;
     };
 
     class JobSystem
@@ -51,6 +52,9 @@ namespace JobSystem
         uint32_t GetThreadCount() const { return m_ThreadCountTotal; }
         uint32_t GetThreadCountSupported() const { return m_ThreadCountSupported; }
         uint32_t GetThreadCountAvaliable();
+
+    public:
+        std::unordered_map<std::thread::id, std::string> m_ThreadNames;
 
     private:
         bool TaskLoop();

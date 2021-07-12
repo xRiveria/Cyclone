@@ -1,5 +1,10 @@
 #include "JobSystem.h"
 #include <thread>
+#define NOMINMAX
+#include <windows.h>
+#include <sstream>
+#include <assert.h>
+#include <winerror.h>
 
 namespace JobSystem
 {
@@ -10,11 +15,13 @@ namespace JobSystem
 
         // Calculate the actual number of worker threads we want (-1 for the main thread).
         m_ThreadCountSupported = m_ThreadCountTotal - 1;
+        m_ThreadNames[std::this_thread::get_id()] = "Main";
 
         // Create all our works threads while immediately starting them. Each thread is put on an infinite loop and will be so until the application exists. The threads will mostly sleep (until the main thread wakes it up) to not spin the CPU wastefully.
-        for (uint32_t threadID = 0; threadID < m_ThreadCountSupported; ++threadID)
+        for (uint32_t threadID = 0; threadID < m_ThreadCountSupported; threadID++)
         {
-            std::thread worker([this] {
+            std::thread worker([this, threadID] 
+            {
                 while (true)
                 {
                     if (!TaskLoop())
@@ -26,8 +33,13 @@ namespace JobSystem
                 }
             });
 
-            // Platform specific setup.
+            m_ThreadNames[worker.get_id()] = "Worker_" + std::to_string(threadID);
 
+            // Platform specific setup. We will use the following to name our threads officially so they will show up in Visual Studio Debugger.
+            HANDLE handle = (HANDLE)worker.native_handle();
+            std::wstringstream wideStringName;
+            wideStringName << m_ThreadNames[worker.get_id()].c_str();
+            SetThreadDescription(handle, wideStringName.str().c_str());
 
             worker.detach(); // Seperates the thread of execution from the thread object, allowing execution to continue independantly (our infinite loop).
         }
@@ -56,7 +68,7 @@ namespace JobSystem
         Job job;
         if (m_JobQueue.pop_front(job))
         {
-            JobInformation jobArguments;
+            JobInformation jobArguments = {};
             jobArguments.m_GroupID = job.m_GroupID;
             
             for (uint32_t i = job.m_GroupJobOffset; i < job.m_GroupJobEnd; ++i)

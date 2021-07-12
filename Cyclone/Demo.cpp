@@ -48,7 +48,12 @@ int main(int argc, int argv[])
 {
     g_JobSystem.Initialize();
 
-    std::cout << g_JobSystem.GetThreadCountAvaliable() << std::endl;
+    for (auto& key : g_JobSystem.m_ThreadNames)
+    {
+        std::cout << "Thread ID: " << key.first << ", Thread Name: " << key.second << std::endl;
+    }
+
+    std::cout << g_JobSystem.GetThreadCountAvaliable() << " Threads Avaliable." << std::endl;
     // Serial Test
     {
         Stopwatch T = Stopwatch("Serial Test: ");
@@ -62,14 +67,13 @@ int main(int argc, int argv[])
 
     // Execute Test
     {
-        Stopwatch T = Stopwatch("Execute() Test: ");
-        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
-        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
-        std::cout << g_JobSystem.GetThreadCountAvaliable() << std::endl;
+        Stopwatch T = Stopwatch("Execute Test: ");
         g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
         g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
         g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
-        std::cout << g_JobSystem.GetThreadCountAvaliable() << std::endl;
+        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
+        std::cout << g_JobSystem.GetThreadCountAvaliable() << " Threads Avaliable." << std::endl;
+        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
         g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
 
         g_JobSystem.Wait();
@@ -81,7 +85,7 @@ int main(int argc, int argv[])
     {
         Data* dataSet = new Data[dataCount];
         {
-            Stopwatch T = Stopwatch("Loop Test: ");
+            Stopwatch T = Stopwatch("Serial Loop Test: ");
 
             for (uint32_t i = 0; i < dataCount; ++i)
             {
@@ -91,6 +95,8 @@ int main(int argc, int argv[])
 
         delete[] dataSet;
     }
+
+    std::cout << g_JobSystem.GetThreadCountAvaliable() << " Threads Avaliable." << std::endl;
 
     // Dispatch Test
     {
@@ -108,6 +114,8 @@ int main(int argc, int argv[])
 
         delete[] dataSet;
     }
+
+    std::cout << g_JobSystem.GetThreadCountAvaliable() << " Threads Avaliable." << std::endl;
 
     return 0;
 }
