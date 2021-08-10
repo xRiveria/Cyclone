@@ -7,7 +7,7 @@ namespace JobSystem
     class RingBuffer
     {
     public:
-        // Pushes an item to the end of the buffer if there is free space. Returns true if successful, returns false if there is a lack of space.
+        // Pushes an item to the start of the buffer. Returns true if successful, returns false if there is a lack of space.
         inline bool push_back(const T& item)
         {
             bool result = false;
@@ -25,7 +25,7 @@ namespace JobSystem
             return result;
         }
 
-        // Retrieves an item if there are any. Returns true if successful, returns false if there are no such items.
+        // Retrieves an item from the end of the buffer if there is any. Returns true if successful, returns false if there are no such items.
         inline bool pop_front(T& item)
         {
             bool result = false;
@@ -42,10 +42,17 @@ namespace JobSystem
             return result;
         }
 
+        // Retrieves the current number of tasks in the queue.
+        inline int size()
+        {
+            return m_Tail - m_Head;
+        }
+
     private:
+        // Note that by modulating our indexes on push/pop, we constantly stay within the allocated capacity.
         T m_Data[capacity];
         size_t m_Head = 0;
-        size_t m_Tail = 0;  // Current location on our m_Data buffer. Its index is the current amount of tasks in our buffer.
+        size_t m_Tail = 0; // Current location in our m_Data buffer. Its index is the current amount of tasks in our buffer - m_Head.
         Spinlock m_Lock;
     };
 }
