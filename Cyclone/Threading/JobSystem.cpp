@@ -144,8 +144,8 @@ namespace JobSystem
         // Wake any threads that might be sleeping to execute all tasks.
         m_WakeCondition.notify_all();
 
-        // Waiting will also put the current thread to good use by working on a job if it can.
-        if (IsBusy())
+        // Waiting will also put the current thread to good use by working on a job if it can. Disable this to not make our main thread work.
+        if (m_UseMainThreadForTasks)
         {
             TaskLoop();
         }

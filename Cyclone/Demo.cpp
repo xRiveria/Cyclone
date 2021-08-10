@@ -27,7 +27,8 @@ struct Stopwatch
     ~Stopwatch()
     {   
         std::chrono::steady_clock::time_point endTimePoint = std::chrono::high_resolution_clock::now();
-        std::cout << m_ProcessName << ": " << std::chrono::duration_cast<std::chrono::microseconds>(endTimePoint - m_Start).count() << " milliseconds." << std::endl;
+        const std::chrono::duration<double, std::milli> milliseconds = endTimePoint - m_Start;
+        std::cout << m_ProcessName << ": " << static_cast<float>(milliseconds.count()) << " milliseconds." << std::endl;
     }
 };
 

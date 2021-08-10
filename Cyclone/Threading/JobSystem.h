@@ -59,6 +59,11 @@ namespace JobSystem
         uint32_t GetThreadCountSupported() const { return m_ThreadCountSupported; }
         uint32_t GetThreadCountAvaliable();
 
+        uint32_t GetQueuedTasksCount() const { return m_Counter.load(); }
+
+        bool IsMainThreadUtilitizedForTasks() const { return m_UseMainThreadForTasks; }
+        void UseMainThreadForTasks(bool value) { m_UseMainThreadForTasks = value; } // Not recommended as it can affect your current program.
+
     private:
         bool TaskLoop();
         uint32_t CalculateDispatchJobCount(uint32_t jobCount, uint32_t groupSize);
@@ -67,6 +72,8 @@ namespace JobSystem
         std::unordered_map<std::thread::id, std::string> m_ThreadNames;
 
     private:
+        bool m_UseMainThreadForTasks = false;
+
         uint32_t m_ThreadCountTotal = 0;         // Total thread count for our system.
         uint32_t m_ThreadCountSupported = 0;     // -1 for the main thread. We can also reserve certain threads for certain systems.
 
