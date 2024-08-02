@@ -12,12 +12,12 @@ namespace Cyclone
 {
     struct JobArguments
     {
-        uint32_t m_JobIndex; 
-        uint32_t m_GroupID;
-        uint32_t m_GroupIndex;
-        bool m_IsFirstJobInGroup;
+        uint32_t m_JobIndex; // Relative to a dispatch.
+        uint32_t m_GroupID; // Group index relative to a dispatch.
+        uint32_t m_JobGroupIndex; // Job index relative to its group.
+        bool m_IsFirstJobInGroup; 
         bool m_IsLastJobInGroup;
-        void* m_SharedMemory;
+        void* m_SharedMemory; // Stack memory within its group (which is executed serially), allowing for data to be shared.
     };
 
     enum class Priority

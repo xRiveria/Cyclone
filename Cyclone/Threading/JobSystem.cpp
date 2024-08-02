@@ -13,7 +13,39 @@ namespace Cyclone
     // Denotes a single task (or function call) submitted by the user either with Execution() or Dispatch() as part of a larger work group.
     struct Job
     {
+        std::function<void(JobArguments)> m_Task;
+        Context* m_Context; // The execution context which the job belongs to.
+        uint32_t m_GroupID;
+        uint32_t m_GroupJobOffset;
+        uint32_t m_GroupJobEnd;
+        uint32_t m_SharedMemorySize;
 
+        void Execute()
+        {
+            JobArguments jobArguments;
+            jobArguments.m_GroupID = m_GroupID;
+            if (m_SharedMemorySize > 0)
+            {
+                thread_local static std::vector<uint8_t> sharedAllocationData;
+                sharedAllocationData.reserve(m_SharedMemorySize);
+                jobArguments.m_SharedMemory = sharedAllocationData.data();
+            }
+            else
+            {
+                jobArguments.m_SharedMemory = nullptr;
+            }
+
+            for (uint32_t i = m_GroupJobOffset; i < m_GroupJobEnd; i++)
+            {
+                jobArguments.m_JobIndex = i;
+                jobArguments.m_JobGroupIndex = i - m_GroupJobOffset;
+                jobArguments.m_IsFirstJobInGroup = (i == m_GroupJobOffset);
+                jobArguments.m_IsLastJobInGroup = (i == (m_GroupJobEnd - 1));
+                m_Task(jobArguments);
+            }
+
+            m_Context->m_JobCounter.fetch_sub(1); // Decrement job count.
+        }
     };
 
     struct JobQueue
