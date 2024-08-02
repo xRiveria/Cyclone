@@ -2,6 +2,15 @@
 #include <chrono>
 #include <iostream>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
+
+void CameraUnitTest(uint32_t cameraCount);
+void TransformUnitTest(uint32_t transformCount);
+
 void Spin(float milliseconds)
 {
     milliseconds /= 1000.0f;  // Convert to seconds.
@@ -78,7 +87,7 @@ int main(int argc, int argv[])
     {
         Data* dataSet = new Data[dataCount];
         {
-            Stopwatch T = Stopwatch("Serial Loop Test: ");
+            Stopwatch T = Stopwatch("Loop Serial Test: ");
 
             for (uint32_t i = 0; i < dataCount; ++i)
             {
@@ -89,15 +98,15 @@ int main(int argc, int argv[])
         delete[] dataSet;
     }
 
-    // Dispatch Test
+    // Dispatch Test 1: Loop Based
     {
         Data* dataSet = new Data[dataCount];
 
         {
             Cyclone::Context loopContext;
-            Stopwatch T = Stopwatch("Dispatch Test: ");
+            Stopwatch T = Stopwatch("Loop Dispatch Test: ");
 
-            const uint32_t groupSize = 1000;
+            const uint32_t groupSize = 128;
             Cyclone::Dispatch(loopContext, dataCount, groupSize, [&dataSet](Cyclone::JobArguments arguments)
             {
                 dataSet[arguments.m_JobGroupIndex].Compute(1);
@@ -108,5 +117,95 @@ int main(int argc, int argv[])
         delete[] dataSet;
     }
 
+    // Dispatch Test 2: Camera Matrices (10000000 Camera Updates)
+    CameraUnitTest(dataCount);
+
+    // Dispatch Test 3: Entity Transforms (10000000 Transform Updates)
+    TransformUnitTest(dataCount);
+
     return 0;
+}
+
+struct CameraComponent
+{
+    glm::mat4 m_ViewMatrix = glm::mat4(1.0f);
+    glm::mat4 m_ProjectionMatrix = glm::mat4(1.0f);
+    glm::mat4 m_ViewProjectionMatrix = glm::mat4(1.0f);
+    glm::mat4 m_InverseViewProjectionMatrix = glm::mat4(1.0f);
+
+    void UpdateCamera()
+    {
+        m_ViewMatrix = glm::lookAt(glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        m_ProjectionMatrix = glm::perspective(90.0f, 1.78f, 0.1f, 1000.0f);
+        m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
+        m_InverseViewProjectionMatrix = glm::inverse(m_ViewProjectionMatrix);
+    }
+};
+
+struct TransformComponent
+{
+    glm::vec3 m_Position;
+    glm::vec3 m_Scale;
+    glm::quat m_Rotation;
+    glm::mat4 m_WorldMatrix; // Not going to bother with dirty checks here as we want to really squeeze performance metrics here.
+
+    void UpdateTransform()
+    {
+        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), m_Position);
+        glm::mat4 rotationMatrix = glm::toMat4(m_Rotation);
+        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), m_Scale);
+
+        m_WorldMatrix = translationMatrix * rotationMatrix * scaleMatrix;
+    }
+};
+
+void CameraUnitTest(uint32_t cameraCount)
+{
+    {
+        Stopwatch T = Stopwatch("Camera Serial Loop Test: ");
+        std::vector<CameraComponent> dataSet(cameraCount);
+        for (uint32_t i = 0; i < cameraCount; i++)
+        {
+            dataSet[i].UpdateCamera();
+        }
+    }
+
+    // Dispatch Test
+    {
+        Cyclone::Context cameraUpdateContext;
+        Stopwatch T = Stopwatch("Camera Dispatch Loop Test: ");
+        std::vector<CameraComponent> dataSet(cameraCount);
+        Cyclone::Dispatch(cameraUpdateContext, cameraCount, 1000, [&dataSet](Cyclone::JobArguments jobArguments)
+        {
+            dataSet[jobArguments.m_JobIndex].UpdateCamera();
+        });
+
+        Cyclone::Wait(cameraUpdateContext);
+    }
+}
+
+void TransformUnitTest(uint32_t entityCount)
+{
+    // Serial Test
+    {
+        Stopwatch T = Stopwatch("Transform Serial Loop Test: ");
+        std::vector<TransformComponent> dataSet(entityCount);
+        for (uint32_t i = 0; i < entityCount; i++)
+        {
+            dataSet[i].UpdateTransform();
+        }
+    }
+
+    // Dispatch Test
+    {
+        Cyclone::Context transformUpdateContext;
+        Stopwatch T = Stopwatch("Transform Dispatch Loop Test: ");
+        std::vector<TransformComponent> dataSet(entityCount);
+        Cyclone::Dispatch(transformUpdateContext, entityCount, 1000, [&dataSet](Cyclone::JobArguments jobArguments)
+            {
+                dataSet[jobArguments.m_JobIndex].UpdateTransform();
+            });
+
+        Cyclone::Wait(transformUpdateContext);
+    }
 }

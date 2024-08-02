@@ -244,8 +244,8 @@ namespace Cyclone
 
         // Post message to logging system.
         char logMessage[256] = {};
-        snprintf(logMessage, sizeof(logMessage), "Cyclone initialized with %d cores\n\tHigh priority threads: %d\n\tLow priority threads: %d\n\tStreaming threads: %d", g_InternalState->m_CoreCount, GetThreadCount(Priority::High), GetThreadCount(Priority::Low), GetThreadCount(Priority::Streaming));
-        std::cout << logMessage << "\n";
+        snprintf(logMessage, sizeof(logMessage), "Cyclone initialized with %d Cores!\nHigh Priority Threads: %d\nLow Priority Threads: %d\nStreaming Threads: %d", g_InternalState->m_CoreCount, GetThreadCount(Priority::High), GetThreadCount(Priority::Low), GetThreadCount(Priority::Streaming));
+        std::cout << logMessage << "\n\n";
     }
 
     void Shutdown()
