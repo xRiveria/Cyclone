@@ -13,7 +13,7 @@
 
     We currently supported singular (function) and loop based parallization.
 
-    When notify_all() is called our threads are woken up and will proceed to look for tasks serially, picking up and executing jobs found. If no jobs are found, they return to a perpertual waiting state.
+    When notify_all() is called, our threads are woken up and will proceed to look for tasks serially, picking up and executing jobs found. If no jobs are found, they return to a perpertual waiting state.
 */
 
 namespace JobSystem
@@ -83,4 +83,53 @@ namespace JobSystem
         std::atomic<uint32_t> m_Counter{ 0 };    // Defines a state of execution. Can be waited on. This tells us how many threads must finish their tasks for the threading library to become idle.
         RingBuffer<Job, 256> m_JobQueue;         // A thread safe queue to put pending jobs onto. This has a capacity of 256 jobs. A worker thread can grab a job from the end of the queue, and new tasks are appended to the start.
     };
+}
+
+// The engine does not know about the concept of Jobs. It simply is concerned with adding tasks that need to be executed in parallel.
+namespace Cyclone
+{
+    struct JobArguments
+    {
+        uint32_t m_JobIndex; 
+        uint32_t m_GroupID;
+        uint32_t m_GroupIndex;
+        bool m_IsFirstJobInGroup;
+        bool m_IsLastJobInGroup;
+        void* m_SharedMemory;
+    };
+
+    enum class Priority
+    {
+        High,           // Default
+        Low,            // Pool of low priority threads, useful for generic tasks that shouldn't interface with high priority tasks.
+        Streaming,      // Single low priority thread for streaming resources.
+        Count
+    };
+
+    // Defines a state of execution. This can consists of multiple jobs which can be waited on.
+    struct Context
+    {
+        std::atomic<uint32_t> m_JobCounter = 0;
+        Priority m_Priority = Priority::High;
+    };
+
+    uint32_t GetThreadCount(Priority priority = Priority::High);
+    
+    // Adds a task to execute asynchronously. Any idle thread can execute this.
+    void Execute(Context& executionContext, const std::function<void(JobArguments)>& task);
+
+    // Divides a task into multiple jobs and executes them in parallel.
+    // JobCount     - How many jobs to generate for this task.
+    // GroupSize    - How many jobs to execute per thread. Jobs inside a group execute serially. 
+    // Task         - The task at hand. Receive a JobArguments parameter defining the tasks themselves.
+    void Dispatch(Context& executionContext, uint32_t jobCount, uint32_t groupSize, const std::function<void(JobArguments)>& task, size_t sharedMemorySize = 0);
+
+    // Returns the number of job groups that will be created for a set number of jobs and a group size.
+    uint32_t GetDispatchGroupCount(uint32_t jobCount, uint32_t groupSize);
+
+    // Checks if any threads in the context are currently working on jobs.
+    bool IsBusy(const Context& executionContext);
+
+    // Wait until all threads become idle. The current thread will become a worker thread and assist in executing jobs. 
+    void Wait(const Context& executionContext);
 }

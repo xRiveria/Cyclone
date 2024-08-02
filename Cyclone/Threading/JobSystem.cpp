@@ -5,6 +5,7 @@
 #include <sstream>
 #include <assert.h>
 #include <winerror.h>
+#include <deque>
 
 namespace JobSystem
 {
@@ -159,5 +160,168 @@ namespace JobSystem
         }
 
         return m_ThreadCountSupported;
+    }
+}
+
+namespace Cyclone
+{
+    struct Job
+    {
+
+    };
+
+    struct JobQueue
+    {
+        std::deque<Job> m_Queue;
+        std::mutex m_QueueLock;
+
+        void PushBack(const Job& newJob)
+        {
+            std::scoped_lock lock(m_QueueLock);
+            m_Queue.push_back(newJob);
+        }
+
+        bool PopFront(Job& existingJob)
+        {
+            std::scoped_lock lock(m_QueueLock);
+            if (m_Queue.empty())
+            {
+                return false;
+            }
+            existingJob = std::move(m_Queue.front());
+            m_Queue.pop_front();
+            return true;
+        }
+    };
+
+    struct PriorityResources
+    {
+        uint32_t m_ThreadCount = 0;
+        std::vector<std::thread> m_Threads;
+        std::unique_ptr<JobQueue[]> m_JobQueuesPerThread;
+        std::atomic<uint32_t> m_NextQueueIndex = 0;
+        std::condition_variable m_WakeCondition;
+        std::mutex m_WakeMutex;
+
+        // Starts working on a job queue. After the job queue is finished, it can switch to another queue and steal jobs from there.
+        void Work(uint32_t startingQueueIndex)
+        {
+            Job existingJob;
+            for (uint32_t i = 0; i < m_ThreadCount; i++)
+            {
+                JobQueue& jobQueue = m_JobQueuesPerThread[startingQueueIndex % m_ThreadCount];
+                while (jobQueue.PopFront(existingJob))
+                {
+                    existingJob.Execute();
+                }
+
+                startingQueueIndex++; // Head to the next queue and steal jobs.
+            }
+        }
+    };
+
+    // Once destroyed, worker threads will be woken up and end their loops.
+    struct InternalState
+    {
+        uint32_t m_CoreCount = 0;
+        PriorityResources m_Resources[int(Priority::Count)];
+        std::atomic_bool m_IsAlive = true; // Denotes if new jobs can be addded to the scheduler.
+
+        void Shutdown()
+        {
+            m_IsAlive.store(false); // New jobs cannot be added from this point.
+            bool runWakingLoop = true;
+            std::thread wakingThread([&]
+            {
+                while (runWakingLoop)
+                {
+                    for (auto& resource : m_Resources)
+                    {
+                        resource.m_WakeCondition.notify_all(); // Wakes up all sleeping worker threads.
+                    }
+                }
+            });
+
+            for (auto& resource : m_Resources)
+            {
+                for (auto& thread : resource.m_Threads)
+                {
+                    thread.join();
+                }
+            }
+
+            runWakingLoop = false;
+            wakingThread.join();
+
+            for (auto& resource : m_Resources)
+            {
+                resource.m_JobQueuesPerThread.reset();
+                resource.m_Threads.clear();
+                resource.m_ThreadCount = 0;
+            }
+
+            m_CoreCount = 0;
+        }
+
+        ~InternalState()
+        {
+            Shutdown();
+        }
+    };
+
+    InternalState* g_InternalState = nullptr;
+
+    void Initialize(uint32_t maxThreadCount)
+    {
+        g_InternalState = new InternalState();
+        maxThreadCount = std::max(1u, maxThreadCount); // 1 for our main thread.
+        g_InternalState->m_CoreCount = std::thread::hardware_concurrency();
+
+        for (int priorityTypeIndex = 0; priorityTypeIndex < int(Priority::Count); priorityTypeIndex++)
+        {
+            const Priority priorityType = (Priority)priorityTypeIndex;
+            PriorityResources& resource = g_InternalState->m_Resources[priorityTypeIndex];
+
+            // Calculate the actual number of worker threads we want.
+            switch (priorityType)
+            {
+            case Priority::High:
+                resource.m_ThreadCount = g_InternalState->m_CoreCount - 1; // -1 for the main thread.
+                break;
+            case Priority::Low:
+                resource.m_ThreadCount = g_InternalState->m_CoreCount - 2; // -1 for the main thread, -1 for streaming.
+                break;
+            case Priority::Streaming:
+                resource.m_ThreadCount = 1;
+                break;
+            default:
+                ///
+                break;
+            }
+
+            resource.m_ThreadCount = std::clamp(resource.m_ThreadCount, 1u, maxThreadCount);
+            resource.m_JobQueuesPerThread.reset(new JobQueue[resource.m_ThreadCount]);
+            resource.m_Threads.reserve(resource.m_ThreadCount);
+
+            for (uint32_t threadID = 0; threadID < resource.m_ThreadCount; threadID++)
+            {
+                std::thread& workerThread = resource.m_Threads.emplace_back([threadID, &resource]
+                {
+                    while (g_InternalState->m_IsAlive.load())
+                    {
+                        resource.Work(threadID);
+
+                        // Once jobs are complete, the thread is put to sleep until it is woken up again.
+                        std::unique_lock<std::mutex> lock(resource.m_WakeMutex);
+                        resource.m_WakeCondition.wait(lock);
+                    }
+                });
+
+                std::thread::native_handle_type threadHandle = workerThread.native_handle();
+                int coreID = threadID + 1;
+
+                /// Naming
+            }
+        }
     }
 }
