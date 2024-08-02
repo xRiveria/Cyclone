@@ -35,6 +35,9 @@ namespace Cyclone
         Priority m_Priority = Priority::High;
     };
 
+    void Initialize(uint32_t maxThreadCount = ~0u);
+    void Shutdown();
+
     uint32_t GetThreadCount(Priority priority = Priority::High);
     
     // Adds a task to execute asynchronously. Any idle thread can execute this.

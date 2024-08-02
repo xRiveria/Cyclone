@@ -2,8 +2,6 @@
 #include <chrono>
 #include <iostream>
 
-JobSystem::JobSystem g_JobSystem;
-
 void Spin(float milliseconds)
 {
     milliseconds /= 1000.0f;  // Convert to seconds.
@@ -47,15 +45,8 @@ struct Data
 
 int main(int argc, int argv[])
 {
-    g_JobSystem.Initialize();
+    Cyclone::Initialize();
 
-    for (auto& key : g_JobSystem.m_ThreadNames)
-    {
-        std::cout << "Thread ID: " << key.first << ", Thread Name: " << key.second << std::endl;
-    }
-
-    std::cout << g_JobSystem.GetThreadCountAvaliable() << " Threads Avaliable." << std::endl;
-    // Serial Test
     {
         Stopwatch T = Stopwatch("Serial Test: ");
         Spin(100);
@@ -69,18 +60,19 @@ int main(int argc, int argv[])
     // Execute Test
     {
         Stopwatch T = Stopwatch("Execute Test: ");
-        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
-        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
-        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
-        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
-        std::cout << g_JobSystem.GetThreadCountAvaliable() << " Threads Avaliable." << std::endl;
-        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
-        g_JobSystem.Execute([](JobSystem::JobInformation jobArguments) { Spin(100); });
+        Cyclone::Context spinContext;
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
 
-        g_JobSystem.Wait();
+        Cyclone::Wait(spinContext);
     }
 
-    uint32_t dataCount = 1000000;
+    uint32_t dataCount = 10000000;
 
     // Serial Loop Test 
     {
@@ -97,26 +89,24 @@ int main(int argc, int argv[])
         delete[] dataSet;
     }
 
-    std::cout << g_JobSystem.GetThreadCountAvaliable() << " Threads Avaliable." << std::endl;
-
     // Dispatch Test
     {
         Data* dataSet = new Data[dataCount];
+
         {
+            Cyclone::Context loopContext;
             Stopwatch T = Stopwatch("Dispatch Test: ");
 
             const uint32_t groupSize = 1000;
-            g_JobSystem.Dispatch(dataCount, groupSize, [&dataSet](JobSystem::JobInformation arguments)
+            Cyclone::Dispatch(loopContext, dataCount, groupSize, [&dataSet](Cyclone::JobArguments arguments)
             {
-                dataSet[arguments.m_GroupIndex].Compute(1);
+                dataSet[arguments.m_JobGroupIndex].Compute(1);
             });
-            g_JobSystem.Wait();
+            Cyclone::Wait(loopContext);
         }
 
         delete[] dataSet;
     }
-
-    std::cout << g_JobSystem.GetThreadCountAvaliable() << " Threads Avaliable." << std::endl;
 
     return 0;
 }

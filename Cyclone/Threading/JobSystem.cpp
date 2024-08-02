@@ -160,7 +160,7 @@ namespace Cyclone
             const Priority priorityType = (Priority)priorityTypeIndex;
             PriorityResources& resource = g_InternalState->m_Resources[priorityTypeIndex];
 
-            // Calculate the actual number of worker threads we want.
+            // Calculate the actual number of worker threads we want. We want all threads to be assigned a core accordingly.
             switch (priorityType)
             {
             case Priority::High:
@@ -173,7 +173,7 @@ namespace Cyclone
                 resource.m_ThreadCount = 1;
                 break;
             default:
-                ///
+                assert(0);
                 break;
             }
 
@@ -290,5 +290,75 @@ namespace Cyclone
     {
         // Calculates the amount of job groups to dispatch. We will overestimate here.
         return (jobCount + groupSize - 1) / groupSize;
+    }
+
+    // Singular task in its own group.
+    void Execute(Context& executionContext, const std::function<void(JobArguments)>& task)
+    {
+        PriorityResources& resource = g_InternalState->m_Resources[int(executionContext.m_Priority)];
+
+        // Update execution context.
+        executionContext.m_JobCounter.fetch_add(1);
+
+        Job newJob;
+        newJob.m_Context = &executionContext;
+        newJob.m_Task = task;
+        newJob.m_GroupID = 0;
+        newJob.m_GroupJobOffset = 0;
+        newJob.m_GroupJobEnd = 1;
+        newJob.m_SharedMemorySize = 0;
+
+        // If our job system hasn't been initialized, or if only a single thread exists, the job is executed immediately.
+        if (resource.m_ThreadCount <= 1)
+        {
+            newJob.Execute();
+        }
+
+        resource.m_JobQueuesPerThread[resource.m_NextQueueIndex.fetch_add(1) % resource.m_ThreadCount].PushBack(newJob);
+        resource.m_WakeCondition.notify_one(); // All threads in the resource wait on this wake condition. This guarantees one awaiting thread is woken up to handle the job.
+    }
+
+    void Dispatch(Context& executionContext, uint32_t jobCount, uint32_t groupSize, const std::function<void(JobArguments)>& task, size_t sharedMemorySize)
+    {
+        if (jobCount == 0 || groupSize == 0)
+        {
+            return;
+        }
+
+        PriorityResources& resource = g_InternalState->m_Resources[int(executionContext.m_Priority)];
+        // A job is generated per group. Tasks within the same group execute serially, using the aforementioned job.
+        const uint32_t groupCount = GetDispatchGroupCount(jobCount, groupSize);
+
+        // Update execution context.
+        executionContext.m_JobCounter.fetch_add(groupCount);
+
+        Job newJob;
+        newJob.m_Context = &executionContext;
+        newJob.m_Task = task;
+        newJob.m_SharedMemorySize = (uint32_t)sharedMemorySize;
+
+        for (uint32_t groupID = 0; groupID < groupCount; groupID++)
+        {
+            // For each group, generate one real job.
+            newJob.m_GroupID = groupID;
+            newJob.m_GroupJobOffset = groupID * groupSize;
+            newJob.m_GroupJobEnd = std::min(newJob.m_GroupJobOffset + groupSize, jobCount); // Prevents overflowing at the lasr group.
+
+            // If our job system hasn't been initialized, or if only a single thread exists, the job is executed immediately.
+            if (resource.m_ThreadCount <= 1)
+            {
+                newJob.Execute();
+            }
+            else
+            {
+                resource.m_JobQueuesPerThread[resource.m_NextQueueIndex.fetch_add(1) % resource.m_ThreadCount].PushBack(newJob);
+            }
+        }
+
+        // Get all awaiting threads to pick off at the new jobs.
+        if (resource.m_ThreadCount > 1)
+        {
+            resource.m_WakeCondition.notify_all();
+        }
     }
 }
