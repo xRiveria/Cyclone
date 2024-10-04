@@ -81,7 +81,7 @@ int main(int argc, int argv[])
         Cyclone::Wait(spinContext);
     }
 
-    uint32_t dataCount = 10000000;
+    uint32_t dataCount = 15000000;
 
     // Serial Loop Test 
     {
