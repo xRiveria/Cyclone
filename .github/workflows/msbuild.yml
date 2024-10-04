@@ -34,13 +34,13 @@ jobs:
         lfs: true
 
     - name: Adding MSBuild to Path
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v2
       with:
         msbuild-architecture: x64
 
     - name: Solution Setup
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run:
+      run: |
         cd Scripts
         CycloneBuildWindows.bat
 
