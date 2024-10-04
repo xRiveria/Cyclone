@@ -1,0 +1,51 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: MSBuild
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  # Path to the solution file relative to the root of the project.
+  SOLUTION_FILE_PATH: "Cyclone.sln"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build-configuration: [Debug, Release]
+
+    steps:
+    - name: Project Checkout
+      uses: actions/checkout@v4
+      with:
+        repository: "xRiveria/Cyclone"
+        lfs: true
+
+    - name: Adding MSBuild to Path
+      uses: microsoft/setup-msbuild@v1.0.2
+      with:
+        msbuild-architecture: x64
+
+    - name: Solution Setup
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run:
+        cd Scripts
+        CycloneBuildWindows.bat
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: MSBuild ${{env.SOLUTION_FILE_PATH}} /m /p:Configuration=${{matrix.build-configuration}} -fl -flp:logfile=logs/Build-${{matrix.build-configuration}}.log
