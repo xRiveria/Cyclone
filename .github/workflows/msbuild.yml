@@ -42,7 +42,7 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
         cd Scripts
-        CycloneBuildWindows.bat
+        ./CycloneBuildWindows.bat
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
