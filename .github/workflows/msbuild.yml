@@ -49,3 +49,7 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: MSBuild ${{env.SOLUTION_FILE_PATH}} /m /p:Configuration=${{matrix.build-configuration}} -fl -flp:logfile=logs/Build-${{matrix.build-configuration}}.log
+    
+    - name: Running Unit Tests...
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ${{env.GITHUB_WORKSPACE}}Binaries/Output/${{ matrix.build-configuration }}/Cyclone/Cyclone.exe

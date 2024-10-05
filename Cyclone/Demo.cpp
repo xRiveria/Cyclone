@@ -8,6 +8,9 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
 
+#include <cstddef>
+#include <type_traits>
+
 void CameraUnitTest(uint32_t cameraCount);
 void TransformUnitTest(uint32_t transformCount);
 
