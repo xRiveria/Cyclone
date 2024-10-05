@@ -52,4 +52,4 @@ jobs:
     
     - name: Running Unit Tests...
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: ${{env.GITHUB_WORKSPACE}}Binaries/Output/${{ matrix.build-configuration }}/Cyclone/Cyclone.exe
+      run: ${{env.GITHUB_WORKSPACE}}Binaries/Cyclone/${{ matrix.build-configuration }}/Output/Cyclone.exe
