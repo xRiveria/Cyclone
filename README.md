@@ -8,7 +8,7 @@ The syncing of results back to the main thread can be done through self-augmenta
 
 ## Compilation
 
-To build the library, simple navigate to the `Scripts` folder and run `CycloneBuildWindows.bat`. This will leverage Premake and automatically generate a C++17 solution in the project's root directory.
+To build the library, simply navigate to the `Scripts` folder and run `CycloneBuildWindows.bat`. This will leverage Premake and automatically generate a C++17 solution in the project's root directory.
 
 ## Usage
 
