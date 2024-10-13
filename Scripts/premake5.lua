@@ -15,7 +15,12 @@ workspace "Cyclone"
         "MultiProcessorCompile"
     }
 
+    defines
+    {
+        "NOMINMAX"
+    }
+
 IncludeDirectories = {}
-IncludeDirectories["GLM"] = "%{wks.location}Dependencies"
+IncludeDirectories["GLM"] = "%{wks.location}Dependencies/GLM"
 
 include "../Cyclone"

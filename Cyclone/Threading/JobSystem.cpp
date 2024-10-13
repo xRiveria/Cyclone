@@ -1,6 +1,6 @@
 #include "JobSystem.h"
+
 #include <thread>
-#define NOMINMAX
 #include <windows.h>
 #include <sstream>
 #include <assert.h>
@@ -14,15 +14,15 @@ namespace Cyclone
     struct Job
     {
         std::function<void(JobArguments)> m_Task;
-        Context* m_Context; // The execution context which the job belongs to.
-        uint32_t m_GroupID;
-        uint32_t m_GroupJobOffset;
-        uint32_t m_GroupJobEnd;
-        uint32_t m_SharedMemorySize;
+        Context* m_Context = nullptr; // The execution context which the job belongs to.
+        uint32_t m_GroupID = 0;
+        uint32_t m_GroupJobOffset = 0;
+        uint32_t m_GroupJobEnd = 0;
+        uint32_t m_SharedMemorySize = 0;
 
         void Execute()
         {
-            JobArguments jobArguments;
+            JobArguments jobArguments = {};
             jobArguments.m_GroupID = m_GroupID;
             if (m_SharedMemorySize > 0)
             {

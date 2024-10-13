@@ -17,6 +17,7 @@ project "Cyclone"
 
     includedirs
     {
+        "Core",
         "%{IncludeDirectories.GLM}",
     }
 

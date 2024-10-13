@@ -8,7 +8,7 @@ The syncing of results back to the main thread can be done through self-augmenta
 
 ## Compilation
 
-To build the library, simple navigate to the `Scripts` folder and run `CycloneBuildWindows.bat`. This will leverage Premake and automatically generate a C++20 solution in the project's root directory.
+To build the library, simple navigate to the `Scripts` folder and run `CycloneBuildWindows.bat`. This will leverage Premake and automatically generate a C++17 solution in the project's root directory.
 
 ## Usage
 
@@ -25,7 +25,7 @@ To build the library, simple navigate to the `Scripts` folder and run `CycloneBu
         Cyclone::Dispatch(loopContext, dataCount, groupSize, [&dataSet](Cyclone::JobArguments jobArguments)
         {
             // Compute() starts a simple loop that counts to 16.
-            dataSet[jobArguments.m_JobGroupIndex].Compute(16);
+            dataSet[jobArguments.m_JobGroupIndex].Compute();
         });
 
         // Stalls the calling thread to ensure that all jobs belonging to the given context have completed execution.
@@ -40,7 +40,7 @@ To build the library, simple navigate to the `Scripts` folder and run `CycloneBu
     Stopwatch stopWatch = Stopwatch("Batched Execution Test: ");
     Cyclone::Context spinContext;
 
-    // Execute() starts a simple loop that counts up to the given parameter value.
+    // Spin() starts a simple clock that ticks up to the given parameter in milliseconds.
     Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(10); });
     Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
     Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(1000); });

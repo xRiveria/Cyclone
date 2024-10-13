@@ -1,11 +1,11 @@
 #pragma once
+#include "Core.h"
+
 #include <functional>
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
 #include <unordered_map>
-// The RingBuffer and SpinLock classes have been phased out to allow for a more streamlined implementation.
-#include "RingBuffer.h"
 
 // The engine does not know about the concept of Jobs. It simply is concerned with adding tasks that need to be executed in parallel.
 namespace Cyclone
@@ -15,8 +15,10 @@ namespace Cyclone
         uint32_t m_JobIndex; // Relative to a dispatch.
         uint32_t m_GroupID; // Group index relative to a dispatch.
         uint32_t m_JobGroupIndex; // Job index relative to its group.
+
         bool m_IsFirstJobInGroup; 
         bool m_IsLastJobInGroup;
+
         void* m_SharedMemory; // Stack memory within its group (which is executed serially), allowing for data to be shared.
     };
 

@@ -1,118 +1,95 @@
+#include "Core/Stopwatch.h"
 #include "Threading/JobSystem.h"
-#include <chrono>
-#include <iostream>
 
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/gtx/transform.hpp>
+#include <glm.hpp>
+#include <gtc/matrix_transform.hpp>
+#include <gtx/quaternion.hpp>
+#include <gtx/transform.hpp>
 
-#include <cstddef>
-#include <type_traits>
+using namespace Core;
 
 void CameraUnitTest(uint32_t cameraCount);
 void TransformUnitTest(uint32_t transformCount);
-
-void Spin(float milliseconds)
-{
-    milliseconds /= 1000.0f;  // Convert to seconds.
-    std::chrono::high_resolution_clock::time_point timePoint1 = std::chrono::high_resolution_clock::now();
-    double ms = 0;
-
-    while (ms < milliseconds)
-    {
-        std::chrono::high_resolution_clock::time_point timePoint2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> timeSpan = std::chrono::duration_cast<std::chrono::duration<double>>(timePoint2 - timePoint1);
-        ms = timeSpan.count();
-    }
-}
-
-struct Stopwatch
-{
-    std::string m_ProcessName;
-    std::chrono::high_resolution_clock::time_point m_Start;
-
-    Stopwatch(const std::string& processName) : m_ProcessName(processName), m_Start(std::chrono::high_resolution_clock::now()) {}
-    ~Stopwatch()
-    {   
-        std::chrono::steady_clock::time_point endTimePoint = std::chrono::high_resolution_clock::now();
-        const std::chrono::duration<double, std::milli> milliseconds = endTimePoint - m_Start;
-        std::cout << m_ProcessName << ": " << static_cast<float>(milliseconds.count()) << " milliseconds." << std::endl;
-    }
-};
+void SpinUnitTest(float milliseconds);
 
 struct Data
 {
     float m_Data[16];
 
-    void Compute(uint32_t value)
+    void Compute()
     {
         for (int i = 0; i < 16; ++i)
         {
-            m_Data[i] += float(value + i);
+            m_Data[i] += 1;
         }
     }
 };
 
 int main(int argc, int argv[])
 {
+    CYCLONE_UNREFERENCED_PARAMETER(argc);
+    CYCLONE_UNREFERENCED_PARAMETER(argv);
+
     Cyclone::Initialize();
 
+    // Serial Test: Simple Loops
     {
-        Stopwatch T = Stopwatch("Serial Test: ");
-        Spin(100);
-        Spin(100);
-        Spin(100);
-        Spin(100);
-        Spin(100);
-        Spin(100);
+        Stopwatch T = Stopwatch("Serial Test (Ticking Counters)");
+        SpinUnitTest(100);
+        SpinUnitTest(100);
+        SpinUnitTest(100);
+        SpinUnitTest(100);
+        SpinUnitTest(100);
+        SpinUnitTest(100);
     }
 
-    // Execute Test
+    // Execute Test: Simple Loops
     {
-        Stopwatch T = Stopwatch("Execute Test: ");
+        Stopwatch T = Stopwatch("Execute Test (Ticking Counters)");
+
         Cyclone::Context spinContext;
-        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
-        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
-        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
-        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
-        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
-        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
-        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { Spin(100); });
+
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { CYCLONE_UNREFERENCED_PARAMETER(jobArguments); SpinUnitTest(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { CYCLONE_UNREFERENCED_PARAMETER(jobArguments); SpinUnitTest(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { CYCLONE_UNREFERENCED_PARAMETER(jobArguments); SpinUnitTest(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { CYCLONE_UNREFERENCED_PARAMETER(jobArguments); SpinUnitTest(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { CYCLONE_UNREFERENCED_PARAMETER(jobArguments); SpinUnitTest(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { CYCLONE_UNREFERENCED_PARAMETER(jobArguments); SpinUnitTest(100); });
+        Cyclone::Execute(spinContext, [](Cyclone::JobArguments jobArguments) { CYCLONE_UNREFERENCED_PARAMETER(jobArguments); SpinUnitTest(100); });
 
         Cyclone::Wait(spinContext);
     }
 
-    uint32_t dataCount = 15000000;
+    uint32_t dataCount = 1500000;
 
-    // Serial Loop Test 
+    // Serial Test: Simple Loops
     {
         Data* dataSet = new Data[dataCount];
         {
-            Stopwatch T = Stopwatch("Loop Serial Test: ");
+            Stopwatch T = Stopwatch("Serial Test (Simple Loops)");
 
             for (uint32_t i = 0; i < dataCount; ++i)
             {
-                dataSet[i].Compute(i);
+                dataSet[i].Compute();
             }
         }
 
         delete[] dataSet;
     }
 
-    // Dispatch Test 1: Loop Based
+    // Dispatch Test 1: Simple Loops
     {
         Data* dataSet = new Data[dataCount];
 
         {
             Cyclone::Context loopContext;
-            Stopwatch T = Stopwatch("Loop Dispatch Test: ");
+            Stopwatch T = Stopwatch("Dispatch Test (Simple Loops)");
 
             const uint32_t groupSize = 128;
             Cyclone::Dispatch(loopContext, dataCount, groupSize, [&dataSet](Cyclone::JobArguments arguments)
             {
-                dataSet[arguments.m_JobGroupIndex].Compute(1);
+                dataSet[arguments.m_JobGroupIndex].Compute();
             });
             Cyclone::Wait(loopContext);
         }
@@ -120,10 +97,10 @@ int main(int argc, int argv[])
         delete[] dataSet;
     }
 
-    // Dispatch Test 2: Camera Matrices (10000000 Camera Updates)
+    // Dispatch Test 2: Camera Matrices (1500000 Camera Updates)
     CameraUnitTest(dataCount);
 
-    // Dispatch Test 3: Entity Transforms (10000000 Transform Updates)
+    // Dispatch Test 3: Entity Transforms (1500000 Transform Updates)
     TransformUnitTest(dataCount);
 
     return 0;
@@ -165,7 +142,7 @@ struct TransformComponent
 void CameraUnitTest(uint32_t cameraCount)
 {
     {
-        Stopwatch T = Stopwatch("Camera Serial Loop Test: ");
+        Stopwatch T = Stopwatch("Serial Test (Camera Transform Updates)");
         std::vector<CameraComponent> dataSet(cameraCount);
         for (uint32_t i = 0; i < cameraCount; i++)
         {
@@ -176,7 +153,7 @@ void CameraUnitTest(uint32_t cameraCount)
     // Dispatch Test
     {
         Cyclone::Context cameraUpdateContext;
-        Stopwatch T = Stopwatch("Camera Dispatch Loop Test: ");
+        Stopwatch T = Stopwatch("Dispatch Test (Camera Transform Updates)");
         std::vector<CameraComponent> dataSet(cameraCount);
         Cyclone::Dispatch(cameraUpdateContext, cameraCount, 1000, [&dataSet](Cyclone::JobArguments jobArguments)
         {
@@ -191,7 +168,7 @@ void TransformUnitTest(uint32_t entityCount)
 {
     // Serial Test
     {
-        Stopwatch T = Stopwatch("Transform Serial Loop Test: ");
+        Stopwatch T = Stopwatch("Serial Test (Entity Transform Updates)");
         std::vector<TransformComponent> dataSet(entityCount);
         for (uint32_t i = 0; i < entityCount; i++)
         {
@@ -202,7 +179,7 @@ void TransformUnitTest(uint32_t entityCount)
     // Dispatch Test
     {
         Cyclone::Context transformUpdateContext;
-        Stopwatch T = Stopwatch("Transform Dispatch Loop Test: ");
+        Stopwatch T = Stopwatch("Dispatch Test (Entity Transform Updates)");
         std::vector<TransformComponent> dataSet(entityCount);
         Cyclone::Dispatch(transformUpdateContext, entityCount, 1000, [&dataSet](Cyclone::JobArguments jobArguments)
             {
@@ -210,5 +187,19 @@ void TransformUnitTest(uint32_t entityCount)
             });
 
         Cyclone::Wait(transformUpdateContext);
+    }
+}
+
+void SpinUnitTest(float milliseconds)
+{
+    milliseconds /= 1000.0f;  // Convert to seconds.
+    std::chrono::high_resolution_clock::time_point timePoint1 = std::chrono::high_resolution_clock::now();
+    double ms = 0;
+
+    while (ms < milliseconds)
+    {
+        std::chrono::high_resolution_clock::time_point timePoint2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> timeSpan = std::chrono::duration_cast<std::chrono::duration<double>>(timePoint2 - timePoint1);
+        ms = timeSpan.count();
     }
 }
